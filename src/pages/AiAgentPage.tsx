@@ -200,7 +200,8 @@ export function AiAgentPage() {
               {t("agent.gemini_not_configured")}
             </p>
           ) : null}
-          {import.meta.env.VITE_API_URL?.includes("onrender.com") ? (
+          {import.meta.env.DEV &&
+          import.meta.env.VITE_API_URL?.includes("onrender.com") ? (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               {t("agent.gemini_wrong_api")}
             </p>
