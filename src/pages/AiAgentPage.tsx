@@ -28,7 +28,7 @@ function formatKpiKey(key: string): string {
 }
 
 function agentPoweredByLabel(
-  supporting: Record<string, string | number | boolean> | undefined,
+  supporting: Record<string, string | number | boolean | undefined> | undefined,
   t: (key: string) => string,
 ): string {
   const source = String(supporting?.source ?? "");
