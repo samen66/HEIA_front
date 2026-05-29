@@ -213,16 +213,77 @@
   },
   "judge": {
     "title": "Judge Demo Mode",
-    "step1_title": "Detect",
-    "step2_title": "Explain",
-    "step3_title": "Recommend",
-    "step4_title": "Estimate Impact",
-    "step5_title": "Act",
-    "step6_title": "Learn",
+    "subtitle": "Guided 6-step HEIS walkthrough for competition judges",
     "next": "Next",
     "previous": "Previous",
     "restart": "Restart Demo",
-    "step_of": "Step {{current}} of {{total}}"
+    "step_of": "Step {{current}} of {{total}}",
+    "steps": {
+      "detect": {
+        "label": "DETECT",
+        "subtitle": "HEIS scores the full consumer card portfolio and surfaces hidden-entrepreneur signals at scale."
+      },
+      "explain": {
+        "label": "EXPLAIN",
+        "subtitle": "Every flag is backed by human-readable reason codes sales and risk teams can trust."
+      },
+      "recommend": {
+        "label": "RECOMMEND",
+        "subtitle": "Turn behavioral signals into concrete product and outreach actions for each cardholder."
+      },
+      "estimate": {
+        "label": "ESTIMATE IMPACT",
+        "subtitle": "Quantify portfolio ROI before launching a targeted SME campaign."
+      },
+      "act": {
+        "label": "ACT",
+        "subtitle": "Sales teams validate predictions — closing the loop between ML and revenue."
+      },
+      "learn": {
+        "label": "LEARN",
+        "subtitle": "Feedback flows back into the model so the next scoring cycle is sharper."
+      }
+    },
+    "step_titles": {
+      "detect": "We analyzed {{count}} consumer cardholders",
+      "explain": "Here is why this cardholder is flagged",
+      "recommend": "This is our recommended action",
+      "estimate": "Here is the estimated business value",
+      "act": "Sales team marks outcome",
+      "learn": "Feedback improves the next model version"
+    },
+    "footer": "This is HEIS — Hidden Entrepreneur Intelligence System by Mastercard",
+    "learn_loop_aria": "Predict, Act, Feedback, Retrain, Better Predict continuous learning loop",
+    "learn_loop_center": "learning loop",
+    "learn_loop_nodes": {
+      "predict": "Predict",
+      "act": "Act",
+      "feedback": "Feedback",
+      "retrain": "Retrain",
+      "better_predict": "Better Predict"
+    },
+    "learn_loop_flow": "Predict → Act → Feedback → Retrain → Better Predict",
+    "kpi_total_scored": "Total scored",
+    "kpi_total_scored_hint": "Consumer cardholders analyzed",
+    "kpi_top1": "Top 1% count",
+    "kpi_top1_hint": "Highest-priority hidden entrepreneurs",
+    "kpi_top5": "Top 5% count",
+    "kpi_top5_hint": "Expanded priority cohort",
+    "kpi_avg_score": "Average score",
+    "kpi_avg_score_hint": "Portfolio commercial activity index",
+    "top_reasons": "Top 3 reasons",
+    "product_match_title": "Product match logic — behavior signal → product",
+    "behavior_signal": "Behavior signal",
+    "matched_product": "Matched product",
+    "assumptions": "Assumptions",
+    "high_opportunity_customers": "High-opportunity customers",
+    "conversion_rate": "Conversion rate: {{rate}}%",
+    "live_roi": "Live ROI estimate",
+    "feedback_saved_success": "Feedback saved successfully",
+    "cardholder_label": "Cardholder",
+    "save_demo_feedback": "Save Demo Feedback",
+    "demo_feedback_saved": "Demo feedback saved",
+    "feedback_error": "Could not save feedback. Ensure the backend is running."
   },
   "common": {
     "page": "Page",

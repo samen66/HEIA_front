@@ -30,8 +30,16 @@ function formatFeatureLabel(name: string): string {
   return name.replace(/_/g, " ");
 }
 
+function normalizeImportancePercent(value: number, total: number): number {
+  return total > 0 ? (value / total) * 100 : 0;
+}
+
 export function FeatureChart({ features, viewMode = "full" }: Props) {
   const isFull = viewMode === "full";
+  const totalImportance = features.reduce(
+    (sum, f) => sum + f.importance_value,
+    0,
+  );
   const sorted = [...features].sort(
     (a, b) => b.importance_value - a.importance_value,
   );
@@ -39,7 +47,9 @@ export function FeatureChart({ features, viewMode = "full" }: Props) {
 
   const chartData = displayFeatures.map((f, index) => ({
     name: formatFeatureLabel(f.feature_name),
-    importance: Number((f.importance_value * 100).toFixed(1)),
+    importance: Number(
+      normalizeImportancePercent(f.importance_value, totalImportance).toFixed(1),
+    ),
     rank: index + 1,
     meaning: f.business_meaning,
     feature_name: f.feature_name,
@@ -58,7 +68,7 @@ export function FeatureChart({ features, viewMode = "full" }: Props) {
           <CardTitle>Feature importance</CardTitle>
           <CardDescription>
             {isFull
-              ? "All model drivers ranked by LightGBM gain"
+              ? "All model drivers ranked by relative LightGBM gain"
               : "Top 5 drivers — executive summary"}
           </CardDescription>
         </CardHeader>
@@ -146,7 +156,11 @@ export function FeatureChart({ features, viewMode = "full" }: Props) {
                     </span>
                   </td>
                   <td className="py-3 pr-4 tabular-nums">
-                    {(f.importance_value * 100).toFixed(1)}%
+                    {normalizeImportancePercent(
+                      f.importance_value,
+                      totalImportance,
+                    ).toFixed(1)}
+                    %
                   </td>
                   {isFull && (
                     <td className="py-3 text-[var(--color-muted-foreground)]">

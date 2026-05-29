@@ -3,6 +3,9 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -21,6 +24,7 @@ import type {
   FeatureImportance,
   ModelMetrics,
 } from "@/lib/api";
+import { buildApproxRocCurve, buildDiagonalRoc } from "@/lib/modelMetrics";
 import { cn, formatPercent } from "@/lib/utils";
 
 const TOP_FEATURE_COLOR = "#7f1d1d";
@@ -190,6 +194,14 @@ export function ModelMonitoringPanel({
     importancePct: f.importancePct,
   }));
 
+  const rocModel = buildApproxRocCurve(metrics.roc_auc);
+  const rocDiagonal = buildDiagonalRoc();
+  const rocData = rocModel.map((point, i) => ({
+    fpr: point.fpr,
+    model: point.tpr,
+    random: rocDiagonal[i]?.tpr ?? point.fpr,
+  }));
+
   return (
     <div className="space-y-8">
       <section>
@@ -252,26 +264,97 @@ export function ModelMonitoringPanel({
         <>
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-muted-foreground)]">
-              Confusion matrix
+              Validation diagnostics
             </h2>
-            <Card>
-              <CardHeader>
-                <CardTitle>Proxy validation confusion matrix</CardTitle>
-                <CardDescription>
-                  Counts from the internal proxy validation holdout (
-                  {(
-                    confusion.tp +
-                    confusion.fp +
-                    confusion.fn +
-                    confusion.tn
-                  ).toLocaleString()}{" "}
-                  labeled proxy pairs)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ConfusionMatrixGrid matrix={confusion} />
-              </CardContent>
-            </Card>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Proxy validation confusion matrix</CardTitle>
+                  <CardDescription>
+                    Counts from the internal proxy validation holdout (
+                    {(
+                      confusion.tp +
+                      confusion.fp +
+                      confusion.fn +
+                      confusion.tn
+                    ).toLocaleString()}{" "}
+                    labeled proxy pairs)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ConfusionMatrixGrid matrix={confusion} />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>ROC curve</CardTitle>
+                  <CardDescription>
+                    Approximate curve shaped by proxy validation ROC-AUC{" "}
+                    {formatPercent(metrics.roc_auc, 0)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart
+                      data={rocData}
+                      margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="fpr"
+                        type="number"
+                        domain={[0, 1]}
+                        tickFormatter={(v) => v.toFixed(1)}
+                        label={{
+                          value: "False Positive Rate",
+                          position: "insideBottom",
+                          offset: -4,
+                          style: { fontSize: 11 },
+                        }}
+                      />
+                      <YAxis
+                        domain={[0, 1]}
+                        tickFormatter={(v) => v.toFixed(1)}
+                        label={{
+                          value: "True Positive Rate",
+                          angle: -90,
+                          position: "insideLeft",
+                          style: { fontSize: 11 },
+                        }}
+                      />
+                      <Tooltip
+                        formatter={(value, name) => [
+                          Number(value ?? 0).toFixed(3),
+                          name === "model" ? "Model" : "Random",
+                        ]}
+                        labelFormatter={(fpr) =>
+                          `FPR: ${Number(fpr).toFixed(2)}`
+                        }
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="random"
+                        name="Random (AUC 0.5)"
+                        stroke="#9ca3af"
+                        strokeDasharray="4 4"
+                        dot={false}
+                        strokeWidth={1.5}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="model"
+                        name={`Model (AUC ${metrics.roc_auc.toFixed(2)})`}
+                        stroke="#EB001B"
+                        dot={false}
+                        strokeWidth={2.5}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </section>
 
           <section>
@@ -399,7 +482,7 @@ export function ModelMonitoringPanel({
 
       {!isFull && (
         <p className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-muted)]/30 px-4 py-3 text-sm text-[var(--color-muted-foreground)]">
-          Summary view — full confusion matrix, feature chart, and model logic
+          Summary view — full confusion matrix, ROC curve, feature chart, and model logic
           are available to Data Scientist and Admin roles only.
         </p>
       )}

@@ -52,82 +52,49 @@ import { cn } from "@/lib/utils";
 const TOTAL_STEPS = 6;
 const JUDGE_API_ROLE = "judge";
 
-const STEP_META = [
-  {
-    key: "detect",
-    label: "DETECT",
-    subtitle:
-      "HEIS scores the full consumer card portfolio and surfaces hidden-entrepreneur signals at scale.",
-    icon: Search,
-  },
-  {
-    key: "explain",
-    label: "EXPLAIN",
-    subtitle:
-      "Every flag is backed by human-readable reason codes sales and risk teams can trust.",
-    icon: Lightbulb,
-  },
-  {
-    key: "recommend",
-    label: "RECOMMEND",
-    subtitle:
-      "Turn behavioral signals into concrete product and outreach actions for each cardholder.",
-    icon: Target,
-  },
-  {
-    key: "estimate",
-    label: "ESTIMATE IMPACT",
-    subtitle:
-      "Quantify portfolio ROI before launching a targeted SME campaign.",
-    icon: Calculator,
-  },
-  {
-    key: "act",
-    label: "ACT",
-    subtitle:
-      "Sales teams validate predictions — closing the loop between ML and revenue.",
-    icon: CheckCircle2,
-  },
-  {
-    key: "learn",
-    label: "LEARN",
-    subtitle:
-      "Feedback flows back into the model so the next scoring cycle is sharper.",
-    icon: Brain,
-  },
+const STEP_KEYS = [
+  "detect",
+  "explain",
+  "recommend",
+  "estimate",
+  "act",
+  "learn",
 ] as const;
 
-const DEMO_FEEDBACK_OPTIONS = ["Converted", "False positive"] as const;
+const STEP_ICONS = {
+  detect: Search,
+  explain: Lightbulb,
+  recommend: Target,
+  estimate: Calculator,
+  act: CheckCircle2,
+  learn: Brain,
+} as const;
 
-function stepTitle(step: number, kpi: KpiSummary | null): string {
-  switch (step) {
-    case 0:
-      return `We analyzed ${(kpi?.total_scored_consumers ?? 0).toLocaleString()} consumer cardholders`;
-    case 1:
-      return "Here is why this cardholder is flagged";
-    case 2:
-      return "This is our recommended action";
-    case 3:
-      return "Here is the estimated business value";
-    case 4:
-      return "Sales team marks outcome";
-    case 5:
-      return "Feedback improves the next model version";
-    default:
-      return "";
-  }
-}
+const DEMO_FEEDBACK_OPTIONS = [
+  { value: "Converted", labelKey: "feedback_statuses.converted" },
+  { value: "False positive", labelKey: "feedback_statuses.false_positive" },
+] as const;
+
+const LEARN_LOOP_NODE_KEYS = [
+  "predict",
+  "act",
+  "feedback",
+  "retrain",
+  "better_predict",
+] as const;
 
 function HeisFooter() {
+  const { t } = useTranslation();
   return (
     <p className="border-t border-[var(--color-border)] pt-4 text-center text-xs text-[var(--color-muted-foreground)]">
-      This is HEIS — Hidden Entrepreneur Intelligence System by Mastercard
+      {t("judge.footer")}
     </p>
   );
 }
 
 function ProgressBar({ step }: { step: number }) {
   const { t } = useTranslation();
+  const stepKey = STEP_KEYS[step];
   const pct = ((step + 1) / TOTAL_STEPS) * 100;
   return (
     <div className="space-y-3">
@@ -135,7 +102,9 @@ function ProgressBar({ step }: { step: number }) {
         <span>
           {t("judge.step_of", { current: step + 1, total: TOTAL_STEPS })}
         </span>
-        <span className="text-[#EB001B]">{STEP_META[step].label}</span>
+        <span className="text-[#EB001B]">
+          {t(`judge.steps.${stepKey}.label`)}
+        </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
         <div
@@ -144,9 +113,9 @@ function ProgressBar({ step }: { step: number }) {
         />
       </div>
       <div className="hidden gap-1 sm:grid sm:grid-cols-6">
-        {STEP_META.map((meta, i) => (
+        {STEP_KEYS.map((key, i) => (
           <div
-            key={meta.key}
+            key={key}
             className={cn(
               "rounded-md px-1 py-1.5 text-center text-[10px] font-semibold uppercase tracking-tight",
               i === step
@@ -156,7 +125,7 @@ function ProgressBar({ step }: { step: number }) {
                   : "bg-slate-100 text-slate-400",
             )}
           >
-            {meta.label}
+            {t(`judge.steps.${key}.label`)}
           </div>
         ))}
       </div>
@@ -165,13 +134,12 @@ function ProgressBar({ step }: { step: number }) {
 }
 
 function LearnLoopSvg() {
-  const nodes = [
-    { label: "Predict", angle: -90 },
-    { label: "Act", angle: -18 },
-    { label: "Feedback", angle: 54 },
-    { label: "Retrain", angle: 126 },
-    { label: "Better Predict", angle: 198 },
-  ];
+  const { t } = useTranslation();
+  const nodes = LEARN_LOOP_NODE_KEYS.map((key, i) => ({
+    label: t(`judge.learn_loop_nodes.${key}`),
+    angle: [-90, -18, 54, 126, 198][i],
+    key,
+  }));
   const cx = 160;
   const cy = 160;
   const r = 108;
@@ -181,7 +149,7 @@ function LearnLoopSvg() {
       viewBox="0 0 320 320"
       className="mx-auto h-auto w-full max-w-sm"
       role="img"
-      aria-label="Predict, Act, Feedback, Retrain, Better Predict continuous learning loop"
+      aria-label={t("judge.learn_loop_aria")}
     >
       <circle
         cx={cx}
@@ -205,7 +173,7 @@ function LearnLoopSvg() {
         const ax = cx + (r + 14) * Math.cos(midAngle);
         const ay = cy + (r + 14) * Math.sin(midAngle);
         return (
-          <g key={node.label}>
+          <g key={node.key}>
             <line
               x1={x}
               y1={y}
@@ -252,7 +220,7 @@ function LearnLoopSvg() {
         textAnchor="middle"
         className="fill-[#6b7280] text-[8px]"
       >
-        learning loop
+        {t("judge.learn_loop_center")}
       </text>
     </svg>
   );
@@ -387,17 +355,22 @@ export function JudgeDemoPage() {
       setFeedbackSaved(true);
       setShowToast(true);
     } catch {
-      setFeedbackError("Could not save feedback. Ensure the backend is running.");
+      setFeedbackError(t("judge.feedback_error"));
     } finally {
       setFeedbackSaving(false);
     }
   };
 
-  const meta = STEP_META[step];
-  const StepIcon = meta.icon;
+  const stepKey = STEP_KEYS[step];
+  const StepIcon = STEP_ICONS[stepKey];
   const isFirst = step === 0;
   const isLast = step === TOTAL_STEPS - 1;
-  const title = stepTitle(step, kpi);
+  const title =
+    stepKey === "detect"
+      ? t("judge.step_titles.detect", {
+          count: (kpi?.total_scored_consumers ?? 0).toLocaleString(),
+        })
+      : t(`judge.step_titles.${stepKey}`);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-8">
@@ -407,7 +380,7 @@ export function JudgeDemoPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t("judge.title")}</h1>
         </div>
         <p className="text-sm text-[var(--color-muted-foreground)]">
-          Guided 6-step HEIS walkthrough for competition judges
+          {t("judge.subtitle")}
         </p>
       </header>
 
@@ -421,11 +394,11 @@ export function JudgeDemoPage() {
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-[#EB001B]">
-                {meta.label}
+                {t(`judge.steps.${stepKey}.label`)}
               </p>
               <CardTitle className="text-xl">{title}</CardTitle>
               <CardDescription className="mt-1 text-sm">
-                {meta.subtitle}
+                {t(`judge.steps.${stepKey}.subtitle`)}
               </CardDescription>
             </div>
           </div>
@@ -441,28 +414,28 @@ export function JudgeDemoPage() {
             {step === 0 && kpi && (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <KpiCard
-                  label="Total scored"
+                  label={t("judge.kpi_total_scored")}
                   value={kpi.total_scored_consumers.toLocaleString()}
-                  hint="Consumer cardholders analyzed"
+                  hint={t("judge.kpi_total_scored_hint")}
                   icon={TrendingUp}
                 />
                 <KpiCard
-                  label="Top 1% count"
+                  label={t("judge.kpi_top1")}
                   value={(kpi.top_1_percent_candidates ?? 0).toLocaleString()}
-                  hint="Highest-priority hidden entrepreneurs"
+                  hint={t("judge.kpi_top1_hint")}
                   icon={Target}
                   accent
                 />
                 <KpiCard
-                  label="Top 5% count"
+                  label={t("judge.kpi_top5")}
                   value={(kpi.top_5_percent_candidates ?? 0).toLocaleString()}
-                  hint="Expanded priority cohort"
+                  hint={t("judge.kpi_top5_hint")}
                   icon={Search}
                 />
                 <KpiCard
-                  label="Average score"
+                  label={t("judge.kpi_avg_score")}
                   value={`${scoreToPercent(kpi.average_score)}%`}
-                  hint="Portfolio commercial activity index"
+                  hint={t("judge.kpi_avg_score_hint")}
                   icon={TrendingUp}
                 />
               </div>
@@ -476,7 +449,7 @@ export function JudgeDemoPage() {
                 <div className="space-y-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                      Card ID
+                      {t("leads.card_id")}
                     </p>
                     <p className="mt-1 font-mono text-lg font-semibold">
                       {topLead.card_id}
@@ -487,7 +460,7 @@ export function JudgeDemoPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="mb-2 text-sm font-semibold">Top 3 reasons</p>
+                    <p className="mb-2 text-sm font-semibold">{t("judge.top_reasons")}</p>
                     <ol className="space-y-2">
                       {[
                         topLead.top_reason_1,
@@ -514,7 +487,7 @@ export function JudgeDemoPage() {
               <div className="space-y-4">
                 <div className="rounded-xl border border-[#F79E1B]/40 bg-gradient-to-r from-white to-orange-50/50 p-5">
                   <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    Recommended action
+                    {t("cardholder.recommendation")}
                   </p>
                   <p className="mt-2 text-lg font-semibold text-[#EB001B]">
                     {topLead.recommended_action}
@@ -522,14 +495,14 @@ export function JudgeDemoPage() {
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-5">
                   <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                    Product match logic — behavior signal → product
+                    {t("judge.product_match_title")}
                   </p>
                   <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                          <th className="px-3 py-2 font-medium">Behavior signal</th>
-                          <th className="px-3 py-2 font-medium">Matched product</th>
+                          <th className="px-3 py-2 font-medium">{t("judge.behavior_signal")}</th>
+                          <th className="px-3 py-2 font-medium">{t("judge.matched_product")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -556,8 +529,8 @@ export function JudgeDemoPage() {
             {step === 3 && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-3 rounded-lg border border-slate-200 p-4">
-                  <p className="text-sm font-semibold">Assumptions</p>
-                  <MiniField label="High-opportunity customers">
+                  <p className="text-sm font-semibold">{t("judge.assumptions")}</p>
+                  <MiniField label={t("judge.high_opportunity_customers")}>
                     <Input
                       type="number"
                       min={0}
@@ -567,7 +540,7 @@ export function JudgeDemoPage() {
                       }
                     />
                   </MiniField>
-                  <MiniField label={`Conversion rate: ${conversionRate}%`}>
+                  <MiniField label={t("judge.conversion_rate", { rate: conversionRate })}>
                     <input
                       type="range"
                       min={1}
@@ -579,7 +552,7 @@ export function JudgeDemoPage() {
                       className="h-2 w-full accent-[#EB001B]"
                     />
                   </MiniField>
-                  <MiniField label="Avg annual revenue (KZT)">
+                  <MiniField label={t("impact.avg_revenue")}>
                     <Input
                       type="number"
                       min={0}
@@ -589,7 +562,7 @@ export function JudgeDemoPage() {
                       }
                     />
                   </MiniField>
-                  <MiniField label="Campaign cost (KZT)">
+                  <MiniField label={t("impact.campaign_cost")}>
                     <Input
                       type="number"
                       min={0}
@@ -602,24 +575,24 @@ export function JudgeDemoPage() {
                 </div>
                 <div className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
                   <p className="text-sm font-semibold text-emerald-900">
-                    Live ROI estimate
+                    {t("judge.live_roi")}
                   </p>
                   <ImpactLine
-                    label="Gross revenue"
+                    label={t("impact.gross_revenue")}
                     value={formatKztPlain(impactResults.estimated_gross_revenue_kzt)}
                   />
                   <ImpactLine
-                    label="Net business impact"
+                    label={t("impact.net_impact")}
                     value={formatKztPlain(impactResults.net_business_impact_kzt)}
                     highlight
                   />
                   <ImpactLine
-                    label="ROI"
+                    label={t("impact.roi")}
                     value={`${impactResults.roi_pct.toFixed(0)}%`}
                     highlight
                   />
                   <ImpactLine
-                    label="Converted customers"
+                    label={t("impact.converted")}
                     value={Math.round(
                       impactResults.converted_customers,
                     ).toLocaleString()}
@@ -637,18 +610,18 @@ export function JudgeDemoPage() {
                   >
                     <CheckCircle2 className="h-14 w-14 text-emerald-600 animate-in zoom-in-50 duration-700" />
                     <p className="text-center text-base font-semibold text-emerald-900">
-                      Feedback saved successfully
+                      {t("judge.feedback_saved_success")}
                     </p>
                   </div>
                 )}
                 <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
                   <span className="text-[var(--color-muted-foreground)]">
-                    Cardholder:{" "}
+                    {t("judge.cardholder_label")}:{" "}
                   </span>
                   <span className="font-mono font-medium">{topLead.card_id}</span>
                 </div>
                 <div className="space-y-2">
-                  <Label>Feedback status</Label>
+                  <Label>{t("leads.feedback_status")}</Label>
                   <Select
                     value={feedbackStatus}
                     onValueChange={setFeedbackStatus}
@@ -659,8 +632,8 @@ export function JudgeDemoPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {DEMO_FEEDBACK_OPTIONS.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {t(opt.labelKey)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -673,10 +646,10 @@ export function JudgeDemoPage() {
                   onClick={handleSaveFeedback}
                 >
                   {feedbackSaved
-                    ? "Demo feedback saved"
+                    ? t("judge.demo_feedback_saved")
                     : feedbackSaving
-                      ? "Saving…"
-                      : "Save Demo Feedback"}
+                      ? t("cardholder.saving")
+                      : t("judge.save_demo_feedback")}
                 </Button>
                 {feedbackError && (
                   <p className="text-sm text-red-600">{feedbackError}</p>
@@ -688,7 +661,7 @@ export function JudgeDemoPage() {
               <div className="space-y-6">
                 <LearnLoopSvg />
                 <p className="text-center text-sm text-[var(--color-muted-foreground)]">
-                  Predict → Act → Feedback → Retrain → Better Predict
+                  {t("judge.learn_loop_flow")}
                 </p>
                 <HeisFooter />
               </div>

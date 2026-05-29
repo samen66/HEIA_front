@@ -126,7 +126,6 @@ const ROLE_NAV_KEYS: Record<UserRole, (keyof typeof NAV)[]> = {
   data_scientist: [
     "modelMetrics",
     "featureImportance",
-    "dashboard",
     "businessImpact",
     "aiAgent",
     "beforeVsAfter",
@@ -230,7 +229,9 @@ export function getNavItemsForRole(role: UserRole): NavItem[] {
 export function getAllowedPaths(role: UserRole): AppPath[] {
   if (role === "judge_demo") return [ROUTES.judgeDemo, ROUTES.aiAgent];
   if (role === "admin") return [...ALL_APP_PATHS];
-  if (role === "data_scientist") return [...ALL_APP_PATHS];
+  if (role === "data_scientist") {
+    return ALL_APP_PATHS.filter((p) => p !== ROUTES.dashboard);
+  }
   return getNavItemsForRole(role).map((item) => item.path);
 }
 
