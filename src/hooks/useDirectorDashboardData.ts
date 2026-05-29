@@ -1,20 +1,35 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type CardholderScore, type SegmentSummary } from "@/lib/api";
+import {
+  api,
+  type BankOpportunitySummary,
+  type KpiSummary,
+  type ProductOpportunitySummary,
+  type SegmentSummary,
+} from "@/lib/api";
 import { API_UNAVAILABLE_MESSAGE } from "@/lib/apiErrors";
 
 export function useDirectorDashboardData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [scores, setScores] = useState<CardholderScore[]>([]);
+  const [kpi, setKpi] = useState<KpiSummary | null>(null);
   const [segments, setSegments] = useState<SegmentSummary[]>([]);
+  const [banks, setBanks] = useState<BankOpportunitySummary[]>([]);
+  const [products, setProducts] = useState<ProductOpportunitySummary[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [s, seg] = await Promise.all([api.getScores(), api.getSegments()]);
-      setScores(s);
+      const [k, seg, b, p] = await Promise.all([
+        api.getKpis("director"),
+        api.getSegments(),
+        api.getBankOpportunities(),
+        api.getProductRecommendations(),
+      ]);
+      setKpi(k);
       setSegments(seg);
+      setBanks(b);
+      setProducts(p);
     } catch {
       setError(API_UNAVAILABLE_MESSAGE);
     } finally {
@@ -26,5 +41,5 @@ export function useDirectorDashboardData() {
     load();
   }, [load]);
 
-  return { loading, error, scores, segments, reload: load };
+  return { loading, error, kpi, segments, banks, products, reload: load };
 }

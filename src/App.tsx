@@ -14,6 +14,7 @@ import { JudgeDemoPage } from "@/pages/JudgeDemoPage";
 import { ModelMetricsPage } from "@/pages/ModelMetricsPage";
 import { ProductRecommendationsPage } from "@/pages/ProductRecommendationsPage";
 import { RoleSelectionPage } from "@/pages/RoleSelectionPage";
+import { RiskCompliancePage } from "@/pages/RiskCompliancePage";
 import { SalesLeadsPage } from "@/pages/SalesLeadsPage";
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
               element={<ProductRecommendationsPage />}
             />
             <Route path={ROUTES.salesLeads} element={<SalesLeadsPage />} />
+            <Route path={ROUTES.riskCompliance} element={<RiskCompliancePage />} />
             <Route path={`${ROUTES.cardholder}/:card_id`} element={<CardholderDetailPage />} />
             <Route path={ROUTES.feedback} element={<FeedbackPage />} />
             <Route path={ROUTES.modelMetrics} element={<ModelMetricsPage />} />

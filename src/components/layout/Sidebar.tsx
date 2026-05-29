@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getNavItemsForRole, type UserRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
@@ -7,15 +8,16 @@ interface Props {
 }
 
 export function Sidebar({ role }: Props) {
+  const { t } = useTranslation();
   const navItems = getNavItemsForRole(role);
 
   return (
     <aside className="hidden w-56 shrink-0 flex-col bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)] xl:flex xl:w-64">
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
         <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-white/40">
-          Navigation
+          {t("nav.navigation")}
         </p>
-        {navItems.map(({ path, label, icon: Icon }) => (
+        {navItems.map(({ path, labelKey, icon: Icon }) => (
           <NavLink
             key={path}
             to={path}
@@ -36,7 +38,7 @@ export function Sidebar({ role }: Props) {
                     isActive ? "text-[#F79E1B]" : "text-white/50",
                   )}
                 />
-                <span className="truncate">{label}</span>
+                <span className="truncate">{t(labelKey)}</span>
                 {isActive && (
                   <span
                     className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-[#EB001B]"

@@ -1,2 +1,2 @@
 export const API_UNAVAILABLE_MESSAGE =
-  "Demo data not available. Please check backend is running.";
+  "Agent temporarily unavailable. Please try again.";

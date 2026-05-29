@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Bar,
   BarChart,
@@ -21,13 +22,19 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import {
+  api,
+  type BusinessImpactAssumptions,
+  type BusinessImpactCalculateResponse,
+  type SegmentSummary,
+} from "@/lib/api";
+import { API_UNAVAILABLE_MESSAGE } from "@/lib/apiErrors";
 import {
   BUSINESS_IMPACT_DEFAULTS,
   calculateBusinessImpact,
-  defaultHighOpportunityCustomers,
   formatKztPlain,
-  SCENARIOS,
+  highPriorityCustomersFromSegments,
+  scenariosFromAssumptions,
 } from "@/lib/businessImpact";
 import { cn } from "@/lib/utils";
 
@@ -38,10 +45,16 @@ const CHART_COLORS = {
 };
 
 export function BusinessImpactPage() {
-  const { loading, error, segments, reload } = useDashboardData();
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [assumptions, setAssumptions] = useState<BusinessImpactAssumptions | null>(
+    null,
+  );
+  const [segments, setSegments] = useState<SegmentSummary[]>([]);
   const [initialized, setInitialized] = useState(false);
 
-  const [customers, setCustomers] = useState(8000);
+  const [customers, setCustomers] = useState(0);
   const [conversionRate, setConversionRate] = useState<number>(
     BUSINESS_IMPACT_DEFAULTS.conversion_rate_pct,
   );
@@ -53,12 +66,61 @@ export function BusinessImpactPage() {
   );
   const [activeScenario, setActiveScenario] = useState<string | null>("base");
 
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiResult, setApiResult] = useState<BusinessImpactCalculateResponse | null>(
+    null,
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [assumptionsData, segmentsData] = await Promise.all([
+        api.getImpactAssumptions(),
+        api.getSegments(),
+      ]);
+      setAssumptions(assumptionsData);
+      setSegments(segmentsData);
+    } catch {
+      setError(API_UNAVAILABLE_MESSAGE);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!loading && segments.length > 0 && !initialized) {
-      setCustomers(defaultHighOpportunityCustomers(segments));
+    load();
+  }, [load]);
+
+  const scenarios = useMemo(
+    () => scenariosFromAssumptions(assumptions),
+    [assumptions],
+  );
+
+  const defaultCustomers = useMemo(
+    () => highPriorityCustomersFromSegments(segments),
+    [segments],
+  );
+
+  useEffect(() => {
+    if (!loading && !error && !initialized) {
+      setCustomers(defaultCustomers);
+      setConversionRate(
+        assumptions?.conversion_rate_pct ??
+          assumptions?.conversion_rate_base ??
+          BUSINESS_IMPACT_DEFAULTS.conversion_rate_pct,
+      );
+      setAvgRevenue(
+        assumptions?.avg_annual_revenue_kzt ??
+          BUSINESS_IMPACT_DEFAULTS.avg_annual_revenue_kzt,
+      );
+      setCampaignCost(
+        assumptions?.campaign_cost_kzt ?? BUSINESS_IMPACT_DEFAULTS.campaign_cost_kzt,
+      );
       setInitialized(true);
     }
-  }, [loading, segments, initialized]);
+  }, [loading, error, initialized, assumptions, defaultCustomers]);
 
   const results = useMemo(
     () =>
@@ -70,6 +132,25 @@ export function BusinessImpactPage() {
       }),
     [customers, conversionRate, avgRevenue, campaignCost],
   );
+
+  const handleCalculateViaApi = async () => {
+    setApiLoading(true);
+    setApiError(null);
+    try {
+      const response = await api.calculateBusinessImpact({
+        high_opportunity_customers: customers,
+        conversion_rate_pct: conversionRate,
+        avg_annual_revenue_kzt: avgRevenue,
+        campaign_cost_kzt: campaignCost,
+      });
+      setApiResult(response);
+    } catch {
+      setApiError(API_UNAVAILABLE_MESSAGE);
+      setApiResult(null);
+    } finally {
+      setApiLoading(false);
+    }
+  };
 
   const chartData = [
     {
@@ -86,23 +167,21 @@ export function BusinessImpactPage() {
       name: "Net Impact",
       value: Math.abs(results.net_business_impact_kzt),
       fill:
-        results.net_business_impact_kzt >= 0
-          ? CHART_COLORS.net
-          : "#dc2626",
+        results.net_business_impact_kzt >= 0 ? CHART_COLORS.net : "#dc2626",
     },
   ];
 
-  const netPositive = results.net_business_impact_kzt >= 0;
+  const displayResults = apiResult ?? results;
 
   return (
     <PageShell
-      title="Business Impact Calculator"
-      description="Model campaign ROI from high-opportunity customer conversion"
+      title={t("impact.title")}
+      description={t("impact.page_description")}
     >
       <DataLoadState
         loading={loading}
         error={error}
-        onRetry={reload}
+        onRetry={load}
         skeleton="chart"
       >
         <div className="grid gap-6 lg:grid-cols-2">
@@ -116,10 +195,10 @@ export function BusinessImpactPage() {
             <CardContent className="space-y-6">
               <Field
                 id="customers"
-                label="High-Opportunity Customers"
+                label={t("impact.leads_count")}
                 hint={
                   segments.length > 0
-                    ? `Default from High segment: ${defaultHighOpportunityCustomers(segments).toLocaleString()}`
+                    ? `Default from Top 1% + Top 5%: ${defaultCustomers.toLocaleString()}`
                     : undefined
                 }
               >
@@ -130,6 +209,7 @@ export function BusinessImpactPage() {
                   value={customers}
                   onChange={(e) => {
                     setActiveScenario(null);
+                    setApiResult(null);
                     setCustomers(Math.max(0, Number(e.target.value) || 0));
                   }}
                 />
@@ -137,7 +217,7 @@ export function BusinessImpactPage() {
 
               <Field
                 id="conversion"
-                label={`Conversion Rate: ${conversionRate}%`}
+                label={`Conversion rate %: ${conversionRate}%`}
               >
                 <input
                   id="conversion"
@@ -148,6 +228,7 @@ export function BusinessImpactPage() {
                   value={conversionRate}
                   onChange={(e) => {
                     setActiveScenario(null);
+                    setApiResult(null);
                     setConversionRate(Number(e.target.value));
                   }}
                   className="h-2 w-full cursor-pointer accent-[#EB001B]"
@@ -160,7 +241,7 @@ export function BusinessImpactPage() {
 
               <Field
                 id="avg-revenue"
-                label="Average Annual Revenue per Customer (KZT)"
+                label={t("impact.avg_revenue")}
               >
                 <Input
                   id="avg-revenue"
@@ -169,12 +250,13 @@ export function BusinessImpactPage() {
                   value={avgRevenue}
                   onChange={(e) => {
                     setActiveScenario(null);
+                    setApiResult(null);
                     setAvgRevenue(Math.max(0, Number(e.target.value) || 0));
                   }}
                 />
               </Field>
 
-              <Field id="campaign-cost" label="Campaign Cost (KZT)">
+              <Field id="campaign-cost" label={t("impact.campaign_cost")}>
                 <Input
                   id="campaign-cost"
                   type="number"
@@ -182,6 +264,7 @@ export function BusinessImpactPage() {
                   value={campaignCost}
                   onChange={(e) => {
                     setActiveScenario(null);
+                    setApiResult(null);
                     setCampaignCost(Math.max(0, Number(e.target.value) || 0));
                   }}
                 />
@@ -192,44 +275,75 @@ export function BusinessImpactPage() {
           <Card>
             <CardHeader>
               <CardTitle>Results</CardTitle>
-              <CardDescription>Live estimates from your inputs</CardDescription>
+              <CardDescription>
+                {apiResult
+                  ? "Values returned from POST /api/business-impact/calculate"
+                  : "Live estimates from your inputs"}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div>
                 <p className="text-sm text-[var(--color-muted-foreground)]">
-                  Estimated Gross Revenue
+                  {t("impact.gross_revenue")}
                 </p>
                 <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-[#EB001B]">
-                  {formatKztPlain(results.estimated_gross_revenue_kzt)}
+                  {formatKztPlain(displayResults.estimated_gross_revenue_kzt)}
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <ResultMetric
-                  label="Net Business Impact"
-                  value={formatKztPlain(results.net_business_impact_kzt)}
+                  label={t("impact.net_impact")}
+                  value={formatKztPlain(displayResults.net_business_impact_kzt)}
                   className={cn(
                     "font-semibold",
-                    netPositive ? "text-emerald-600" : "text-red-600",
+                    displayResults.net_business_impact_kzt >= 0
+                      ? "text-emerald-600"
+                      : "text-red-600",
                   )}
                 />
                 <ResultMetric
-                  label="ROI"
-                  value={`${results.roi_pct.toFixed(0)}%`}
+                  label={t("impact.roi")}
+                  value={`${displayResults.roi_pct.toFixed(0)}%`}
                 />
                 <ResultMetric
-                  label="Converted Customers"
-                  value={Math.round(results.converted_customers).toLocaleString(
-                    "en-US",
-                  )}
+                  label={t("impact.converted")}
+                  value={Math.round(
+                    displayResults.converted_customers,
+                  ).toLocaleString("en-US")}
                   className="sm:col-span-2"
                 />
+              </div>
+
+              <p className="text-xs text-[var(--color-muted-foreground)]">
+                {t("impact.disclaimer")}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={handleCalculateViaApi}
+                  disabled={apiLoading}
+                >
+                  {apiLoading ? "Calculating…" : "Calculate via API"}
+                </Button>
+                {apiError && (
+                  <p className="text-sm text-red-600">{apiError}</p>
+                )}
+                {apiResult && !apiError && (
+                  <p className="text-sm text-emerald-600">
+                    API result matches live calculation
+                  </p>
+                )}
               </div>
 
               <div className="pt-2">
                 <p className="mb-3 text-sm font-medium">Revenue vs cost</p>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                     <YAxis
@@ -266,7 +380,7 @@ export function BusinessImpactPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            {SCENARIOS.map((scenario) => (
+            {scenarios.map((scenario) => (
               <Button
                 key={scenario.id}
                 type="button"
@@ -274,6 +388,7 @@ export function BusinessImpactPage() {
                 onClick={() => {
                   setConversionRate(scenario.conversion_rate_pct);
                   setActiveScenario(scenario.id);
+                  setApiResult(null);
                 }}
               >
                 {scenario.label} ({scenario.conversion_rate_pct}%)

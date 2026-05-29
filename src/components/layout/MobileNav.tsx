@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getNavItemsForRole, type UserRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function MobileNav({ role }: Props) {
+  const { t } = useTranslation();
   const navItems = getNavItemsForRole(role);
 
   return (
@@ -14,7 +16,7 @@ export function MobileNav({ role }: Props) {
       className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] bg-slate-50/80 px-3 py-2 xl:hidden"
       aria-label="Mobile navigation"
     >
-      {navItems.map(({ path, label }) => (
+      {navItems.map(({ path, labelKey }) => (
         <NavLink
           key={path}
           to={path}
@@ -27,7 +29,7 @@ export function MobileNav({ role }: Props) {
             )
           }
         >
-          {label}
+          {t(labelKey)}
         </NavLink>
       ))}
     </nav>

@@ -28,7 +28,7 @@ export function AgentChat({ selectedCardId }: Props) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "agent",
-      text: "I'm HEIA — your Hidden Entrepreneur Intelligence Agent. Ask about cardholders, segments, model metrics, or features. Select a row in the scores table to get card-specific answers.",
+      text: "I'm HEIS — your Hidden Entrepreneur Intelligence System. Ask about cardholders, segments, model metrics, or features. Select a row in the scores table to get card-specific answers.",
     },
   ]);
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,7 @@ export function AgentChat({ selectedCardId }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bot className="h-5 w-5" />
-          HEIA Agent
+          HEIS Agent
           {selectedCardId && (
             <span className="text-xs font-normal text-[var(--color-muted-foreground)]">
               · context: {selectedCardId}
@@ -104,7 +104,7 @@ export function AgentChat({ selectedCardId }: Props) {
           <Input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask HEIA about this portfolio…"
+            placeholder="Ask HEIS about this portfolio…"
             disabled={loading}
           />
           <Button type="submit" size="default" disabled={loading}>

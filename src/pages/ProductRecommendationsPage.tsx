@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { DataLoadState } from "@/components/DataLoadState";
 import { PageShell } from "@/components/PageShell";
 import {
@@ -8,40 +9,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDashboardData } from "@/hooks/useDashboardData";
-
-const RECOMMENDATIONS = [
-  {
-    product: "SME Business Credit Line",
-    segment: "High",
-    rationale: "Strong transaction velocity + recurring B2B merchants",
-  },
-  {
-    product: "Payroll & Expense Bundle",
-    segment: "Medium",
-    rationale: "Growing employee card usage patterns",
-  },
-  {
-    product: "Cross-border Trade Facility",
-    segment: "High",
-    rationale: "FX spend concentration in import categories",
-  },
-  {
-    product: "Digital Invoicing Add-on",
-    segment: "Low",
-    rationale: "Early-stage entrepreneur signals; nurture track",
-  },
-];
+import { formatKzt } from "@/lib/utils";
 
 export function ProductRecommendationsPage() {
-  const { loading, error, scores, reload } = useDashboardData();
+  const { t } = useTranslation();
+  const { loading, error, segments, products, reload } = useDashboardData();
 
   const bySegment = (seg: string) =>
-    scores.filter((s) => s.risk_segment === seg).length;
+    segments
+      .filter((s) => s.risk_segment === seg)
+      .reduce((sum, s) => sum + s.number_of_cardholders, 0);
+
+  const topProducts = [...products]
+    .sort((a, b) => b.estimated_opportunity_value - a.estimated_opportunity_value)
+    .filter((p) => p.recommended_action !== "Monitor only")
+    .slice(0, 4);
 
   return (
     <PageShell
-      title="Product Recommendations"
-      description="Next-best product actions aligned to HEIA opportunity segments"
+      title={t("products.title")}
+      description={t("products.description")}
     >
       <DataLoadState
         loading={loading}
@@ -55,17 +42,22 @@ export function ProductRecommendationsPage() {
           <SegmentCount label="Low" count={bySegment("Low")} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          {RECOMMENDATIONS.map((rec) => (
-            <Card key={rec.product}>
+          {topProducts.map((rec) => (
+            <Card key={rec.recommended_action}>
               <CardHeader>
-                <CardTitle className="text-base">{rec.product}</CardTitle>
+                <CardTitle className="text-base">
+                  {rec.recommended_product ?? rec.recommended_action}
+                </CardTitle>
                 <CardDescription>
-                  Target segment:{" "}
-                  <span className="font-medium text-[#EB001B]">{rec.segment}</span>
+                  {rec.number_of_cardholders.toLocaleString()} cardholders · avg
+                  score {(rec.average_score * 100).toFixed(0)}%
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-[var(--color-muted-foreground)]">
-                {rec.rationale}
+                Estimated opportunity:{" "}
+                <span className="font-medium text-[var(--color-foreground)]">
+                  {formatKzt(rec.estimated_opportunity_value)}
+                </span>
               </CardContent>
             </Card>
           ))}
@@ -84,7 +76,7 @@ function SegmentCount({ label, count }: { label: string; count: number }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-bold">{count} cardholders</p>
+        <p className="text-2xl font-bold">{count.toLocaleString()} cardholders</p>
       </CardContent>
     </Card>
   );

@@ -1,4 +1,6 @@
+import { useTranslation } from "react-i18next";
 import { opportunityBadgeClass } from "@/lib/cardholder";
+import { translateSegment } from "@/lib/i18nLabels";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -7,6 +9,8 @@ interface Props {
 }
 
 export function OpportunityBadge({ segment, className }: Props) {
+  const { t } = useTranslation();
+
   return (
     <span
       className={cn(
@@ -15,7 +19,7 @@ export function OpportunityBadge({ segment, className }: Props) {
         className,
       )}
     >
-      {segment}
+      {translateSegment(t, segment)}
     </span>
   );
 }
