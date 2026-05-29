@@ -1,28 +1,21 @@
 import { useRef, useEffect, useState } from "react";
-import { Bot, Send, User } from "lucide-react";
+import { Bot, Loader2, Send, User } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRole } from "@/context/RoleContext";
 import { api, type AgentQuestionResponse } from "@/lib/api";
 import { API_UNAVAILABLE_MESSAGE } from "@/lib/apiErrors";
+import { AGENT_SUGGESTED_KEYS } from "@/lib/i18nLabels";
 import { cn } from "@/lib/utils";
-
-const SUGGESTED_QUESTIONS = [
-  "What is the expected revenue if conversion rate increases to 12%?",
-  "How many high-opportunity customers are there?",
-  "Which bank has the most hidden entrepreneurs?",
-  "What is the top reason customers are flagged?",
-  "What products should we offer to High segment?",
-  "What is the ROI at 15% conversion rate?",
-] as const;
 
 interface ChatMessage {
   id: string;
   role: "user" | "agent";
   question?: string;
   answer?: string;
-  supporting_data?: Record<string, string | number>;
+  supporting_data?: Record<string, string | number | boolean | undefined>;
 }
 
 function formatKpiKey(key: string): string {
@@ -34,7 +27,22 @@ function formatKpiKey(key: string): string {
     .replace(/Roi/g, "ROI");
 }
 
-function formatKpiValue(value: string | number): string {
+function agentPoweredByLabel(
+  supporting: Record<string, string | number | boolean> | undefined,
+  t: (key: string) => string,
+): string {
+  const source = String(supporting?.source ?? "");
+  if (source === "gemini") return t("agent.powered_by");
+  if (source === "demo") return t("agent.powered_by_demo");
+  if (source === "rules") return t("agent.powered_by_rules");
+  return t("agent.powered_by_rules");
+}
+
+function formatKpiValue(
+  value: string | number | boolean,
+  t: (key: string) => string,
+): string {
+  if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
   if (typeof value === "number") {
     if (Math.abs(value) >= 1_000_000) {
       return `₸${(value / 1_000_000).toFixed(1)}M`;
@@ -50,42 +58,89 @@ function formatKpiValue(value: string | number): string {
   return String(value);
 }
 
-function AgentAnswerCard({ response }: { response: AgentQuestionResponse }) {
-  const entries = Object.entries(response.supporting_data ?? {});
+function AgentAnswerCard({
+  response,
+  poweredByLabel,
+  t,
+}: {
+  response: AgentQuestionResponse;
+  poweredByLabel: string;
+  t: (key: string) => string;
+}) {
+  const geminiError = response.supporting_data?.gemini_error;
+  const entries = Object.entries(response.supporting_data ?? {}).filter(
+    ([key]) =>
+      key !== "intent" &&
+      key !== "gemini_error" &&
+      key !== "blocked" &&
+      key !== "source" &&
+      key !== "gemini_model",
+  );
 
   return (
-    <div className="mr-4 max-w-[92%] space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-sm">
-      <div className="flex items-start gap-2">
-        <Bot className="mt-0.5 h-4 w-4 shrink-0 text-[#EB001B]" />
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{response.answer}</p>
+    <div className="flex max-w-[92%] items-start gap-3">
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-200">
+        <Bot className="h-4 w-4 text-gray-600" />
       </div>
-      {entries.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-3">
-          {entries.map(([key, value]) => (
-            <div
-              key={key}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)]/40 px-3 py-1.5"
-            >
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-muted-foreground)]">
-                {formatKpiKey(key)}
-              </p>
-              <p className="text-sm font-semibold tabular-nums text-[#EB001B]">
-                {formatKpiValue(value)}
-              </p>
-            </div>
-          ))}
+      <div className="mr-4 flex-1 space-y-3 rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 shadow-sm">
+        {geminiError ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            {t("agent.gemini_fallback")}
+            <span className="mt-1 block font-mono text-[10px] leading-snug opacity-90">
+              {String(geminiError).slice(0, 320)}
+            </span>
+          </p>
+        ) : null}
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-900">
+          {response.answer}
+        </p>
+        <div className="-mt-1 flex items-center justify-end">
+          <span className="rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[10px] font-medium text-gray-500">
+            {poweredByLabel}
+          </span>
         </div>
-      )}
+        {entries.length > 0 && (
+          <div className="flex flex-wrap gap-2 border-t border-gray-200 pt-3">
+            {entries.map(([key, value]) => (
+              <div
+                key={key}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5"
+              >
+                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                  {formatKpiKey(key)}
+                </p>
+                <p className="text-sm font-semibold tabular-nums text-[#EB001B]">
+                  {formatKpiValue(value, t)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export function AiAgentPage() {
+  const { t } = useTranslation();
   const { role } = useRole();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<{
+    gemini_configured: boolean;
+    model: string;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const suggestedQuestions = AGENT_SUGGESTED_KEYS.map((key) => t(key));
+
+  useEffect(() => {
+    api
+      .getAgentStatus()
+      .then((s) => setAgentStatus({ gemini_configured: s.gemini_configured, model: s.model }))
+      .catch(() => setAgentStatus(null));
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -112,7 +167,10 @@ export function AiAgentPage() {
           id: crypto.randomUUID(),
           role: "agent",
           answer: res.answer,
-          supporting_data: res.supporting_data,
+          supporting_data: res.supporting_data as Record<
+            string,
+            string | number | boolean
+          >,
         },
       ]);
     } catch {
@@ -131,23 +189,30 @@ export function AiAgentPage() {
 
   return (
     <PageShell
-      title="HEIA AI Agent"
-      description="Ask business questions — answers are grounded in scored portfolio data"
+      title={t("agent.title")}
+      description={t("agent.description")}
       className="flex max-w-4xl flex-col"
     >
       <div className="flex min-h-[calc(100vh-12rem)] flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-muted)]/10">
-        <div
-          ref={scrollRef}
-          className="flex-1 space-y-4 overflow-y-auto px-4 py-6"
-        >
+        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-6">
+          {agentStatus && !agentStatus.gemini_configured ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+              {t("agent.gemini_not_configured")}
+            </p>
+          ) : null}
+          {import.meta.env.VITE_API_URL?.includes("onrender.com") ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              {t("agent.gemini_wrong_api")}
+            </p>
+          ) : null}
+
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EB001B]/10">
                 <Bot className="h-6 w-6 text-[#EB001B]" />
               </div>
               <p className="mt-4 max-w-md text-sm text-[var(--color-muted-foreground)]">
-                Ask about revenue scenarios, segment counts, bank rankings, flagging
-                reasons, product recommendations, or ROI — or pick a suggested question below.
+                {t("agent.empty_hint")}
               </p>
             </div>
           )}
@@ -166,21 +231,32 @@ export function AiAgentPage() {
                 response={{
                   question: "",
                   answer: msg.answer ?? "",
-                  supporting_data: msg.supporting_data ?? {},
+                  supporting_data: (msg.supporting_data ?? {}) as Record<
+                    string,
+                    string | number
+                  >,
                   timestamp: "",
                 }}
+                poweredByLabel={agentPoweredByLabel(msg.supporting_data, t)}
+                t={t}
               />
             ),
           )}
 
           {loading && (
-            <p className="text-sm text-[var(--color-muted-foreground)]">Analyzing…</p>
+            <div className="flex items-center gap-2 text-sm text-[var(--color-muted-foreground)]">
+              <Loader2 className="h-4 w-4 animate-spin text-[#EB001B]" />
+              <span>{t("agent.thinking")}</span>
+            </div>
           )}
         </div>
 
         <div className="border-t border-[var(--color-border)] bg-white px-4 py-4">
+          <p className="mb-2 text-xs font-medium text-[var(--color-muted-foreground)]">
+            {t("agent.suggested")}
+          </p>
           <div className="mb-3 flex flex-wrap gap-2">
-            {SUGGESTED_QUESTIONS.map((s) => (
+            {suggestedQuestions.map((s) => (
               <button
                 key={s}
                 type="button"
@@ -207,13 +283,13 @@ export function AiAgentPage() {
             <Input
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask a business question..."
+              placeholder={t("agent.placeholder")}
               disabled={loading}
               className="flex-1"
             />
             <Button type="submit" disabled={loading || !question.trim()}>
               <Send className="h-4 w-4" />
-              <span className="sr-only">Send</span>
+              <span className="sr-only">{t("agent.send")}</span>
             </Button>
           </form>
         </div>

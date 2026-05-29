@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { OpportunityBadge } from "@/components/OpportunityBadge";
 import { ScoreProgressBar } from "@/components/ScoreProgressBar";
@@ -7,127 +8,172 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { CardholderScore } from "@/lib/api";
-import { cardholderPath, displayCardId } from "@/lib/cardholder";
+import {
+  FEEDBACK_STATUS_OPTIONS,
+  OPPORTUNITY_SEGMENT_OPTIONS,
+  cardholderPath,
+  confidenceBadgeClass,
+  confidenceLabel,
+  displayCardId,
+  feedbackStatusBadgeClass,
+  type LeadSortKey,
+} from "@/lib/cardholder";
+import {
+  translateConfidence,
+  translateFeedbackStatus,
+  translateSegment,
+} from "@/lib/i18nLabels";
 import type { UserRole } from "@/lib/roles";
+import { formatKzt } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 20;
-
 interface Props {
-  scores: CardholderScore[];
+  leads: CardholderScore[];
+  total: number;
   role: UserRole | null;
+  banks: string[];
+  segmentFilter: string;
+  bankFilter: string;
+  feedbackFilter: string;
+  search: string;
+  sort: LeadSortKey;
+  page: number;
+  pageSize: number;
+  onSegmentFilterChange: (value: string) => void;
+  onBankFilterChange: (value: string) => void;
+  onFeedbackFilterChange: (value: string) => void;
+  onSearchChange: (value: string) => void;
+  onSortChange: (value: LeadSortKey) => void;
+  onPageChange: (page: number) => void;
 }
 
-export function SalesLeadsTable({ scores, role }: Props) {
+const SORT_OPTIONS: { value: LeadSortKey; labelKey: string }[] = [
+  { value: "score_desc", labelKey: "leads.sort_score_desc" },
+  { value: "expected_value_desc", labelKey: "leads.sort_value_desc" },
+  { value: "expected_value_asc", labelKey: "leads.sort_value_asc" },
+  { value: "bank", labelKey: "leads.sort_bank" },
+];
+
+export function SalesLeadsTable({
+  leads,
+  total,
+  role,
+  banks,
+  segmentFilter,
+  bankFilter,
+  feedbackFilter,
+  search,
+  sort,
+  page,
+  pageSize,
+  onSegmentFilterChange,
+  onBankFilterChange,
+  onFeedbackFilterChange,
+  onSearchChange,
+  onSortChange,
+  onPageChange,
+}: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [segmentFilter, setSegmentFilter] = useState("all");
-  const [bankFilter, setBankFilter] = useState("all");
-  const [feedbackFilter, setFeedbackFilter] = useState("all");
-  const [page, setPage] = useState(1);
 
-  const segments = useMemo(
-    () => [...new Set(scores.map((s) => s.opportunity_segment))].sort(),
-    [scores],
+  const sortOptionLabels = Object.fromEntries(
+    SORT_OPTIONS.map((o) => [o.value, t(o.labelKey)]),
   );
-  const banks = useMemo(
-    () => [...new Set(scores.map((s) => s.bank_name))].sort(),
-    [scores],
-  );
+
   const feedbackStatuses = useMemo(
-    () => [...new Set(scores.map((s) => s.feedback_status))].sort(),
-    [scores],
+    () => [...new Set([...FEEDBACK_STATUS_OPTIONS, ...leads.map((l) => l.feedback_status)])].sort(),
+    [leads],
   );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return scores
-      .filter((row) => {
-        if (q && !row.card_id.toLowerCase().includes(q)) return false;
-        if (segmentFilter !== "all" && row.opportunity_segment !== segmentFilter)
-          return false;
-        if (bankFilter !== "all" && row.bank_name !== bankFilter) return false;
-        if (feedbackFilter !== "all" && row.feedback_status !== feedbackFilter)
-          return false;
-        return true;
-      })
-      .sort((a, b) => b.commercial_activity_score - a.commercial_activity_score);
-  }, [scores, search, segmentFilter, bankFilter, feedbackFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
-  const resetPage = () => setPage(1);
+  const rangeStart = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(currentPage * pageSize, total);
 
   return (
     <Card>
       <CardHeader className="space-y-4">
-        <CardTitle>Sales Lead List ({filtered.length})</CardTitle>
+        <CardTitle>{t("leads.title")}</CardTitle>
         <div className="flex flex-col gap-3">
           <div className="relative max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--color-muted-foreground)]" />
             <Input
-              placeholder="Search by card ID…"
+              placeholder={t("leads.search_placeholder")}
               className="pl-8"
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                resetPage();
-              }}
+              onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
           <div className="flex flex-wrap gap-2">
             <FilterSelect
-              label="Opportunity Segment"
+              label={t("leads.filter_segment")}
               value={segmentFilter}
-              onChange={(v) => {
-                setSegmentFilter(v);
-                resetPage();
-              }}
-              options={segments}
+              onChange={onSegmentFilterChange}
+              options={OPPORTUNITY_SEGMENT_OPTIONS}
+              optionLabels={Object.fromEntries(
+                OPPORTUNITY_SEGMENT_OPTIONS.map((s) => [
+                  s,
+                  translateSegment(t, s),
+                ]),
+              )}
+              allLabel={t("leads.all_segments")}
             />
             <FilterSelect
-              label="Bank Name"
+              label={t("leads.filter_bank")}
               value={bankFilter}
-              onChange={(v) => {
-                setBankFilter(v);
-                resetPage();
-              }}
+              onChange={onBankFilterChange}
               options={banks}
+              allLabel={t("leads.all_banks")}
             />
             <FilterSelect
-              label="Feedback Status"
+              label={t("leads.filter_feedback")}
               value={feedbackFilter}
-              onChange={(v) => {
-                setFeedbackFilter(v);
-                resetPage();
-              }}
+              onChange={onFeedbackFilterChange}
               options={feedbackStatuses}
+              optionLabels={Object.fromEntries(
+                feedbackStatuses.map((s) => [s, translateFeedbackStatus(t, s)]),
+              )}
+              allLabel={t("leads.all_statuses")}
+            />
+            <FilterSelect
+              label={t("leads.sort_by")}
+              value={sort}
+              onChange={(v) => onSortChange(v as LeadSortKey)}
+              options={SORT_OPTIONS.map((o) => o.value)}
+              optionLabels={sortOptionLabels}
+              allLabel=""
+              hideAll
             />
           </div>
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-left text-sm">
+        {total > 0 && (
+          <p className="mb-3 text-sm text-[var(--color-muted-foreground)]">
+            {t("leads.showing", {
+              start: rangeStart,
+              end: rangeEnd,
+              total,
+            })}
+          </p>
+        )}
+        <table className="w-full min-w-[1200px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--color-border)] text-[var(--color-muted-foreground)]">
-              <th className="pb-2 pr-3 font-medium">Card ID</th>
-              <th className="pb-2 pr-3 font-medium">Bank</th>
-              <th className="pb-2 pr-3 font-medium">Card Tier</th>
-              <th className="pb-2 pr-3 font-medium">Score</th>
-              <th className="pb-2 pr-3 font-medium">Opportunity Segment</th>
-              <th className="pb-2 pr-3 font-medium">Recommended Action</th>
-              <th className="pb-2 pr-3 font-medium">Confidence</th>
-              <th className="pb-2 pr-3 font-medium">Feedback Status</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.card_id")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.bank")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.tier")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.opportunity_segment")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.activity_score")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.confidence")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.action")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.value")}</th>
+              <th className="pb-2 pr-3 font-medium">{t("leads.feedback_status")}</th>
               <th className="pb-2 font-medium" />
             </tr>
           </thead>
           <tbody>
-            {pageRows.map((row) => (
+            {leads.map((row) => (
               <tr
                 key={row.card_id}
                 className="border-b border-[var(--color-border)]/60 hover:bg-[var(--color-muted)]/30"
@@ -138,18 +184,37 @@ export function SalesLeadsTable({ scores, role }: Props) {
                 <td className="py-2.5 pr-3">{row.bank_name}</td>
                 <td className="py-2.5 pr-3">{row.card_tier}</td>
                 <td className="py-2.5 pr-3">
+                  <OpportunityBadge segment={row.opportunity_segment} />
+                </td>
+                <td className="py-2.5 pr-3">
                   <ScoreProgressBar score={row.commercial_activity_score} />
                 </td>
                 <td className="py-2.5 pr-3">
-                  <OpportunityBadge segment={row.opportunity_segment} />
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                      confidenceBadgeClass(row.confidence_level),
+                    )}
+                  >
+                    {translateConfidence(t, confidenceLabel(row.confidence_level))}
+                  </span>
                 </td>
-                <td className="max-w-[180px] truncate py-2.5 pr-3 text-xs">
+                <td className="max-w-[200px] truncate py-2.5 pr-3 text-xs">
                   {row.recommended_action}
                 </td>
                 <td className="py-2.5 pr-3 tabular-nums text-xs">
-                  {(row.confidence_level * 100).toFixed(0)}%
+                  {formatKzt(row.expected_value_kzt)}
                 </td>
-                <td className="py-2.5 pr-3 text-xs">{row.feedback_status}</td>
+                <td className="py-2.5 pr-3">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                      feedbackStatusBadgeClass(row.feedback_status),
+                    )}
+                  >
+                    {translateFeedbackStatus(t, row.feedback_status)}
+                  </span>
+                </td>
                 <td className="py-2.5">
                   <Button
                     type="button"
@@ -157,21 +222,21 @@ export function SalesLeadsTable({ scores, role }: Props) {
                     size="sm"
                     onClick={() => navigate(cardholderPath(row.card_id))}
                   >
-                    View Details
+                    {t("leads.view_details")}
                   </Button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {pageRows.length === 0 && (
+        {leads.length === 0 && (
           <p className="py-8 text-center text-sm text-[var(--color-muted-foreground)]">
             No leads match your filters.
           </p>
         )}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
           <p className="text-[var(--color-muted-foreground)]">
-            Page {currentPage} of {totalPages} · {filtered.length} leads
+            Page {currentPage} of {totalPages}
           </p>
           <div className="flex gap-2">
             <Button
@@ -179,18 +244,18 @@ export function SalesLeadsTable({ scores, role }: Props) {
               variant="outline"
               size="sm"
               disabled={currentPage <= 1}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => onPageChange(currentPage - 1)}
             >
-              Previous
+              {t("judge.previous")}
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={currentPage >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => onPageChange(currentPage + 1)}
             >
-              Next
+              {t("judge.next")}
             </Button>
           </div>
         </div>
@@ -204,11 +269,17 @@ function FilterSelect({
   value,
   onChange,
   options,
+  optionLabels,
+  allLabel,
+  hideAll = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  options: string[];
+  options: readonly string[];
+  optionLabels?: Record<string, string>;
+  allLabel: string;
+  hideAll?: boolean;
 }) {
   return (
     <select
@@ -219,10 +290,10 @@ function FilterSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
-      <option value="all">All {label.replace("Opportunity ", "")}</option>
+      {!hideAll && <option value="">{allLabel}</option>}
       {options.map((opt) => (
         <option key={opt} value={opt}>
-          {opt}
+          {optionLabels?.[opt] ?? opt}
         </option>
       ))}
     </select>

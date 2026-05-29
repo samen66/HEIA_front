@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { DataLoadState } from "@/components/DataLoadState";
 import { FeatureChart } from "@/components/FeatureChart";
 import { PageShell } from "@/components/PageShell";
@@ -6,6 +7,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { hasFullFeatureImportanceAccess } from "@/lib/roles";
 
 export function FeatureImportancePage() {
+  const { t } = useTranslation();
   const { role } = useRole();
   const { loading, error, features, reload } = useDashboardData();
 
@@ -14,8 +16,8 @@ export function FeatureImportancePage() {
 
   return (
     <PageShell
-      title="Feature Importance"
-      description="Top model drivers with business-readable interpretations"
+      title={t("model.feature_importance")}
+      description={t("model.feature_importance_page_desc")}
     >
       <DataLoadState
         loading={loading}

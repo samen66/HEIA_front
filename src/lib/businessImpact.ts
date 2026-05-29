@@ -18,11 +18,49 @@ export const BUSINESS_IMPACT_DEFAULTS = {
   campaign_cost_kzt: 5_000_000,
 } as const;
 
-export const SCENARIOS = [
+export interface ImpactScenario {
+  id: string;
+  label: string;
+  conversion_rate_pct: number;
+}
+
+export const FALLBACK_SCENARIOS: ImpactScenario[] = [
   { id: "conservative", label: "Conservative", conversion_rate_pct: 5 },
   { id: "base", label: "Base Case", conversion_rate_pct: 10 },
   { id: "optimistic", label: "Optimistic", conversion_rate_pct: 20 },
-] as const;
+];
+
+export function scenariosFromAssumptions(
+  assumptions: {
+    conversion_rate_conservative?: number;
+    conversion_rate_base?: number;
+    conversion_rate_optimistic?: number;
+  } | null,
+): ImpactScenario[] {
+  if (!assumptions) return FALLBACK_SCENARIOS;
+  return [
+    {
+      id: "conservative",
+      label: "Conservative",
+      conversion_rate_pct:
+        assumptions.conversion_rate_conservative ??
+        FALLBACK_SCENARIOS[0].conversion_rate_pct,
+    },
+    {
+      id: "base",
+      label: "Base Case",
+      conversion_rate_pct:
+        assumptions.conversion_rate_base ?? FALLBACK_SCENARIOS[1].conversion_rate_pct,
+    },
+    {
+      id: "optimistic",
+      label: "Optimistic",
+      conversion_rate_pct:
+        assumptions.conversion_rate_optimistic ??
+        FALLBACK_SCENARIOS[2].conversion_rate_pct,
+    },
+  ];
+}
 
 export function calculateBusinessImpact(
   input: BusinessImpactInput,
@@ -52,6 +90,25 @@ export function formatKztPlain(value: number): string {
   return `${Math.round(value).toLocaleString("en-US")} KZT`;
 }
 
+const TOP_PRIORITY_SEGMENTS = [
+  "Top 1% highest priority",
+  "Top 5% priority",
+] as const;
+
+export function highPriorityCustomersFromSegments(
+  segments: { opportunity_segment?: string; number_of_cardholders: number }[],
+): number {
+  const total = segments
+    .filter((s) =>
+      TOP_PRIORITY_SEGMENTS.includes(
+        s.opportunity_segment as (typeof TOP_PRIORITY_SEGMENTS)[number],
+      ),
+    )
+    .reduce((sum, s) => sum + s.number_of_cardholders, 0);
+  return total > 0 ? total : 4000;
+}
+
+/** @deprecated Use highPriorityCustomersFromSegments */
 export function defaultHighOpportunityCustomers(
   segments: { risk_segment: string; number_of_cardholders: number }[],
 ): number {

@@ -19,7 +19,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("HEIA render error:", error, info.componentStack);
+    console.error("HEIS render error:", error, info.componentStack);
   }
 
   handleRetry = () => {

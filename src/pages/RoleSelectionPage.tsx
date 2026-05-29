@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { HeiaLogoMark } from "@/components/HeiaLogo";
-import { DemoDataBadge } from "@/components/layout/DemoDataBadge";
 import {
   Card,
   CardDescription,
@@ -9,10 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useRole } from "@/context/RoleContext";
+import { translateRole, translateRoleDescription } from "@/lib/i18nLabels";
 import { getDefaultRouteForRole, ROLE_CARDS } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 export function RoleSelectionPage() {
+  const { t } = useTranslation();
   const { setRole, clearRole } = useRole();
   const navigate = useNavigate();
 
@@ -27,28 +29,27 @@ export function RoleSelectionPage() {
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
-        <DemoDataBadge />
-      </div>
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
         <header className="mb-12 text-center">
           <div className="mb-6 flex justify-center">
-            <HeiaLogoMark />
+            <HeiaLogoMark className="h-auto max-h-32 w-auto max-w-full sm:max-h-36" />
           </div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#EB001B]">
-            Mastercard | Powered by ML
+            {t("common.brand_tagline")}
           </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Hidden Entrepreneur Intelligence Agent
+          <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+            {t("roles.select_title")}
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-slate-600 sm:text-base">
-            Select your role to access a tailored HEIA workspace. Each view surfaces
-            the insights most relevant to your function.
+            {t("roles.select_subtitle")}
+          </p>
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-500">
+            {t("roles.select_hint")}
           </p>
         </header>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {ROLE_CARDS.map(({ role, title, description, icon: Icon }) => (
+          {ROLE_CARDS.map(({ role, icon: Icon }) => (
             <button
               key={role}
               type="button"
@@ -67,9 +68,11 @@ export function RoleSelectionPage() {
                   <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-md bg-slate-900 text-white group-hover:bg-[#0A1628]">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <CardTitle className="text-base">{title}</CardTitle>
+                  <CardTitle className="text-base">
+                    {translateRole(t, role)}
+                  </CardTitle>
                   <CardDescription className="text-xs leading-relaxed">
-                    {description}
+                    {translateRoleDescription(t, role)}
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -78,7 +81,7 @@ export function RoleSelectionPage() {
         </div>
 
         <p className="mt-10 text-center text-xs text-slate-500">
-          HEIA · Mastercard Kazakhstan · Demo environment
+          {t("common.footer_tagline")}
         </p>
       </div>
     </div>

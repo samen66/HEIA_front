@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Package,
   Scale,
+  ShieldAlert,
   Sparkles,
   Target,
   Users,
@@ -30,6 +31,7 @@ export const ROUTES = {
   beforeVsAfter: "/before-vs-after",
   productRecommendations: "/product-recommendations",
   salesLeads: "/sales-leads",
+  riskCompliance: "/risk-compliance",
   cardholder: "/cardholder",
   feedback: "/feedback",
   modelMetrics: "/model-metrics",
@@ -47,6 +49,7 @@ export const ALL_APP_PATHS: AppPath[] = [
   ROUTES.beforeVsAfter,
   ROUTES.productRecommendations,
   ROUTES.salesLeads,
+  ROUTES.riskCompliance,
   ROUTES.cardholder,
   ROUTES.feedback,
   ROUTES.modelMetrics,
@@ -55,45 +58,50 @@ export const ALL_APP_PATHS: AppPath[] = [
 
 export interface NavItem {
   path: AppPath;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
 }
 
 const NAV: Record<string, NavItem> = {
-  dashboard: { path: ROUTES.dashboard, label: "Dashboard", icon: LayoutDashboard },
+  dashboard: { path: ROUTES.dashboard, labelKey: "nav.dashboard", icon: LayoutDashboard },
   businessImpact: {
     path: ROUTES.businessImpact,
-    label: "Business Impact",
+    labelKey: "nav.business_impact",
     icon: BarChart3,
   },
   beforeVsAfter: {
     path: ROUTES.beforeVsAfter,
-    label: "Before vs After",
+    labelKey: "nav.before_after",
     icon: Scale,
   },
   productRecommendations: {
     path: ROUTES.productRecommendations,
-    label: "Product Recommendations",
+    labelKey: "nav.product_recommendations",
     icon: Package,
   },
-  salesLeads: { path: ROUTES.salesLeads, label: "Sales Leads", icon: Target },
-  feedback: { path: ROUTES.feedback, label: "Feedback", icon: MessageSquare },
+  salesLeads: { path: ROUTES.salesLeads, labelKey: "nav.sales_leads", icon: Target },
+  riskCompliance: {
+    path: ROUTES.riskCompliance,
+    labelKey: "nav.risk_compliance",
+    icon: ShieldAlert,
+  },
+  feedback: { path: ROUTES.feedback, labelKey: "nav.feedback", icon: MessageSquare },
   modelMetrics: {
     path: ROUTES.modelMetrics,
-    label: "Model Metrics",
+    labelKey: "nav.model_metrics",
     icon: Gauge,
   },
   featureImportance: {
     path: ROUTES.featureImportance,
-    label: "Feature Importance",
+    labelKey: "nav.feature_importance",
     icon: Brain,
   },
   judgeDemo: {
     path: ROUTES.judgeDemo,
-    label: "Guided Demo",
+    labelKey: "nav.guided_demo",
     icon: Sparkles,
   },
-  aiAgent: { path: ROUTES.aiAgent, label: "AI Agent", icon: Bot },
+  aiAgent: { path: ROUTES.aiAgent, labelKey: "nav.ai_agent", icon: Bot },
 };
 
 const ROLE_NAV_KEYS: Record<UserRole, (keyof typeof NAV)[]> = {
@@ -114,7 +122,7 @@ const ROLE_NAV_KEYS: Record<UserRole, (keyof typeof NAV)[]> = {
     "featureImportance",
   ],
   sales_manager: ["salesLeads", "feedback"],
-  risk_compliance: ["salesLeads", "modelMetrics", "feedback"],
+  risk_compliance: ["riskCompliance", "salesLeads", "modelMetrics", "feedback"],
   data_scientist: [
     "modelMetrics",
     "featureImportance",
@@ -133,12 +141,15 @@ const ROLE_NAV_KEYS: Record<UserRole, (keyof typeof NAV)[]> = {
     "beforeVsAfter",
     "productRecommendations",
     "salesLeads",
+    "riskCompliance",
     "feedback",
     "modelMetrics",
     "featureImportance",
   ],
   judge_demo: ["judgeDemo", "aiAgent"],
 };
+
+const RISK_COMPLIANCE_ROLES: UserRole[] = ["risk_compliance", "admin"];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   director: "Director / Executive",
@@ -201,7 +212,7 @@ export const ROLE_CARDS: RoleCardConfig[] = [
   {
     role: "admin",
     title: "Admin",
-    description: "Full access to every HEIA workspace and configuration view",
+    description: "Full access to every HEIS workspace and configuration view",
     icon: Gauge,
   },
   {
@@ -218,11 +229,22 @@ export function getNavItemsForRole(role: UserRole): NavItem[] {
 
 export function getAllowedPaths(role: UserRole): AppPath[] {
   if (role === "judge_demo") return [ROUTES.judgeDemo, ROUTES.aiAgent];
-  if (role === "admin" || role === "data_scientist") return [...ALL_APP_PATHS];
+  if (role === "admin") return [...ALL_APP_PATHS];
+  if (role === "data_scientist") return [...ALL_APP_PATHS];
   return getNavItemsForRole(role).map((item) => item.path);
 }
 
+export function canAccessRiskCompliance(role: UserRole): boolean {
+  return RISK_COMPLIANCE_ROLES.includes(role);
+}
+
 export function canAccessRoute(role: UserRole, pathname: string): boolean {
+  if (
+    pathname === ROUTES.riskCompliance ||
+    pathname.startsWith(`${ROUTES.riskCompliance}/`)
+  ) {
+    return canAccessRiskCompliance(role);
+  }
   if (pathname.startsWith(`${ROUTES.cardholder}/`)) {
     return getAllowedPaths(role).includes(ROUTES.salesLeads);
   }
@@ -237,6 +259,7 @@ export function getDefaultRouteForRole(role: UserRole): AppPath {
   return nav[0]?.path ?? ROUTES.dashboard;
 }
 
+/** @deprecated Use getRouteLabelKey from @/lib/i18nLabels with t() instead */
 export function getRouteLabel(pathname: string): string {
   const path = pathname.split("?")[0];
   if (path.startsWith(`${ROUTES.cardholder}/`)) {
@@ -245,19 +268,21 @@ export function getRouteLabel(pathname: string): string {
   const item = Object.values(NAV).find(
     (n) => path === n.path || path.startsWith(`${n.path}/`),
   );
-  return item?.label ?? "Page";
+  return item?.labelKey ?? "common.page";
 }
 
-const FULL_MODEL_ANALYTICS_ROLES: UserRole[] = [
+const FULL_MODEL_METRICS_ROLES: UserRole[] = ["data_scientist", "admin"];
+
+const FULL_FEATURE_IMPORTANCE_ROLES: UserRole[] = [
   "data_scientist",
   "risk_compliance",
   "admin",
 ];
 
 export function hasFullModelMetricsAccess(role: UserRole): boolean {
-  return FULL_MODEL_ANALYTICS_ROLES.includes(role);
+  return FULL_MODEL_METRICS_ROLES.includes(role);
 }
 
 export function hasFullFeatureImportanceAccess(role: UserRole): boolean {
-  return FULL_MODEL_ANALYTICS_ROLES.includes(role);
+  return FULL_FEATURE_IMPORTANCE_ROLES.includes(role);
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Toast } from "@/components/Toast";
 import { api } from "@/lib/api";
 import { API_UNAVAILABLE_MESSAGE } from "@/lib/apiErrors";
@@ -18,6 +18,7 @@ import {
   FEEDBACK_STATUS_OPTIONS,
   roleToApiLabel,
 } from "@/lib/cardholder";
+import { translateFeedbackStatus } from "@/lib/i18nLabels";
 import type { UserRole } from "@/lib/roles";
 
 interface Props {
@@ -33,6 +34,7 @@ export function CardholderFeedbackForm({
   role,
   onSaved,
 }: Props) {
+  const { t } = useTranslation();
   const [savedStatus, setSavedStatus] = useState(initialStatus);
   const [status, setStatus] = useState(
     FEEDBACK_STATUS_OPTIONS.includes(
@@ -67,6 +69,7 @@ export function CardholderFeedbackForm({
         old_status: oldStatus,
         new_status: status,
         timestamp,
+        comment,
       });
       setToast(true);
       setSavedStatus(status);
@@ -82,12 +85,18 @@ export function CardholderFeedbackForm({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Field Feedback</CardTitle>
+          <CardTitle>{t("cardholder.feedback_title")}</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="mb-4 text-sm text-[var(--color-muted-foreground)]">
+            {t("cardholder.current_status")}:{" "}
+            <span className="font-medium text-[var(--color-foreground)]">
+              {translateFeedbackStatus(t, savedStatus)}
+            </span>
+          </p>
           <form onSubmit={handleSave} className="space-y-4">
             <div className="space-y-2">
-              <Label>Feedback status</Label>
+              <Label>{t("cardholder.change_status")}</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger>
                   <SelectValue />
@@ -95,28 +104,23 @@ export function CardholderFeedbackForm({
                 <SelectContent>
                   {FEEDBACK_STATUS_OPTIONS.map((opt) => (
                     <SelectItem key={opt} value={opt}>
-                      {opt}
+                      {translateFeedbackStatus(t, opt)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="feedback-comment">Comment</Label>
-              <Textarea
+              <Label htmlFor="feedback-comment">{t("cardholder.comment")}</Label>
+              <Input
                 id="feedback-comment"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Outreach notes, conversion outcome, or rationale…"
-                rows={4}
+                placeholder={t("cardholder.comment_placeholder")}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="feedback-card">Card ID</Label>
-              <Input id="feedback-card" value={cardId} readOnly className="font-mono text-xs" />
-            </div>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving…" : "Save Feedback"}
+              {loading ? t("cardholder.saving") : t("cardholder.feedback_save")}
             </Button>
             {error && <p className="text-sm text-red-600">{error}</p>}
           </form>
@@ -124,7 +128,7 @@ export function CardholderFeedbackForm({
       </Card>
       {toast && (
         <Toast
-          message="Feedback saved. This result can be used in future model retraining."
+          message={t("cardholder.feedback_saved")}
           onDismiss={() => setToast(false)}
         />
       )}

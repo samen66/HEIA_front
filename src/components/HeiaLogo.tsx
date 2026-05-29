@@ -1,34 +1,30 @@
 import { cn } from "@/lib/utils";
 
-export function HeiaLogo({ className }: { className?: string }) {
+type HeiaLogoProps = {
+  className?: string;
+  variant?: "light" | "dark";
+};
+
+export function HeiaLogo({ className, variant = "dark" }: HeiaLogoProps) {
+  const src = variant === "light" ? "/logo_light.jpeg" : "/logo.jpeg";
+
   return (
-    <div className={cn("flex items-center gap-3", className)}>
-      <div className="relative h-11 w-11 shrink-0">
-        <span
-          className="absolute left-0 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-[#EB001B]"
-          aria-hidden
-        />
-        <span
-          className="absolute right-0 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-[#F79E1B] opacity-90"
-          aria-hidden
-        />
-      </div>
-      <span className="text-xl font-bold tracking-tight text-white">HEIA</span>
-    </div>
+    <img
+      src={src}
+      alt="HEIS — Hidden Entrepreneur Intelligence System"
+      className={cn("h-11 w-auto object-contain", className)}
+    />
   );
 }
 
-export function HeiaLogoMark({ className }: { className?: string }) {
+export function HeiaLogoMark({ className, variant = "light" }: HeiaLogoProps) {
+  const src = variant === "light" ? "/logo_light.jpeg" : "/logo.jpeg";
+
   return (
-    <div className={cn("relative h-14 w-14", className)}>
-      <span
-        className="absolute left-0 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-[#EB001B]"
-        aria-hidden
-      />
-      <span
-        className="absolute right-0 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-[#F79E1B] opacity-90"
-        aria-hidden
-      />
-    </div>
+    <img
+      src={src}
+      alt="HEIS — Hidden Entrepreneur Intelligence System"
+      className={cn("h-14 w-auto object-contain", className)}
+    />
   );
 }

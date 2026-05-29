@@ -1,6 +1,9 @@
 import { AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function OpportunityDisclaimer() {
+  const { t } = useTranslation();
+
   return (
     <div
       role="note"
@@ -11,10 +14,7 @@ export function OpportunityDisclaimer() {
           className="mt-0.5 h-4 w-4 shrink-0 text-amber-700"
           aria-hidden
         />
-        <p>
-          This system provides opportunity signals only. Customer action requires
-          human review by authorized personnel.
-        </p>
+        <p>{t("warnings.opportunity_disclaimer")}</p>
       </div>
     </div>
   );
